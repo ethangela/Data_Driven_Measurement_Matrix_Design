@@ -32,7 +32,7 @@ import faulthandler
 import signal
 
 
-def inpaint_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, used_indice_list=None, first_count=False, block_per_round=4, lambdas=0.9):
+def stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, used_indice_list=None, first_count=False, block_per_round=4, lambdas=0.9):
     
     #parameter 
     N = int(round_mcmc*2000)
@@ -334,7 +334,7 @@ def inpaint_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, used
 
 
 
-def inpaint_mcmc_main(hparams, mask, round_mcmc=10, round_mcmc_start=0):
+def mcmc_main(hparams, mask, round_mcmc=10, round_mcmc_start=0):
     
     #parameter
     dim_like = 64*64*3
@@ -453,10 +453,6 @@ def inpaint_mcmc_main(hparams, mask, round_mcmc=10, round_mcmc_start=0):
 
 
 
-
-
-
-
 def compress_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, used_indice_list=None, first_count=False, block_per_round=4, lambdas=0.9):
     
     #parameter 
@@ -472,8 +468,8 @@ def compress_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, use
     
     #load posterior sample
     for i in range(round_mcmc):
-        mcmc_samp = np.load('matrix_{}_round_{}_mcmc_test_samples.npy'.format(int(np.sum(mask)), 2000*(i+1)))
-        print('loaded matrix_{}_round_{}_mcmc_test_samples.npy'.format(int(np.sum(mask)), 2000*(i+1)))
+        mcmc_samp = np.load('mask_{}_round_{}_mcmc_test_samples.npy'.format(int(np.sum(mask)), 2000*(i+1)))
+        print('loaded mask_{}_round_{}_mcmc_test_samples.npy'.format(int(np.sum(mask)), 2000*(i+1)))
         if i == 0:
             mcmc_samps = np.squeeze(mcmc_samp) #2000,1,100 -> 2000,100
         else:
@@ -489,7 +485,7 @@ def compress_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, use
 
     #get input
     xs_dict = model_input(hparams) #{0: img}
-    x_true = xs_dict[0].reshape(1,-1) #(1,12288)
+    x_true = xs_dict[0].reshape(1,-1) #(1,12288) 
 
 
     #matrix
@@ -525,9 +521,9 @@ def compress_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, use
     # X_hat, Initializer, Restore
     _, restore_dict_gen, restore_path_gen = dcgan_gen(z_batch, hparams)
     gen_out = gen(z_batch, hparams) #64 64 3
-    visible_img = gen_out * mask
-    gen_out_compress = np.matmul(visible_img.reshape(1,-1), A) #(1,12288) @ (12288,n_mea) = (1,n_mea)
-    x_true_compress = np.matmul(x_true, A) #(1,12288) @ (12288,n_mea) = (1,n_mea)
+    visible_out = gen_out * mask
+    gen_out_compress = tf.matmul(tf.reshape(visible_out, [1,-1]), A) #(1,12288) @ (12288,n_mea) = (1,n_mea)
+    x_true_compress = tf.matmul(x_true, A) #(1,12288) @ (12288,n_mea) = (1,n_mea)
     diff_img = gen_out_compress - x_true_compress #(1,n_mea)
 
 
@@ -566,7 +562,7 @@ def compress_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, use
         map_ind = np.argmin(loss)
         # print('map index: {}'.format(map_ind))
         g_z_map = sess.run(gen_out, feed_dict={z_batch: np.expand_dims(eff_samps[map_ind,:], axis=0)}) #(64,64,3)
-        rec_error = np.linalg.norm(g_z_map-x_true)/dim_like
+        rec_error = np.linalg.norm(g_z_map.reshape(1,-1)-x_true)/dim_like
         # print(' MAP recover loss: {}'.format(rec_error))
 
 
@@ -586,6 +582,7 @@ def compress_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, use
         def normalize(a):
             return((a-np.min(a))/(np.max(a)-np.min(a)))
         
+        x_true = x_true.reshape(hparams.image_shape)
         x_true = normalize(x_true) #(64,64,3)
         y_meas = x_true * mask
         y_meas[y_meas == 0.] = np.nan
@@ -615,7 +612,7 @@ def compress_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, use
         fig.colorbar(im6, ax=axs[2][1])
         axs[2][1].set_title(r'$x_{{var}}$')
         plt.setp(plt.gcf().get_axes(), xticks=[], yticks=[])
-        plt.savefig('round_{}_adaptive_sampling.jpg'.format(int(dim_compress/(block_per_round*3*inpaint_size**2)))) ##########################should change
+        plt.savefig('round_{}_adaptive_sampling.jpg'.format(int(dim_compress/(block_per_round*3*inpaint_size**2)))) 
         plt.show()
         print('image saved')
 
@@ -692,6 +689,130 @@ def compress_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, use
         print('used_indice {}'.format(used_indice))
         
         return mask, used_indice
+
+
+def compress_mcmc_main(hparams, mask, round_mcmc=10, round_mcmc_start=0):
+    
+    #parameter
+    dim_like = 64*64*3
+    batch_size = 1
+    N = 2000
+    burn = int(0.5*N)
+    num_measurements = 500
+
+
+    # Set up palceholders
+    z_batch = tf.Variable(tf.random_normal([1, 100]), name='z_batch')
+    
+
+    # Create the generator
+    def dcgan_gen(z, hparams):
+        assert hparams.batch_size in [1, 64], 'batch size should be either 64 or 1'
+        z_full = tf.zeros([64, 100]) + z
+        model_hparams = celebA_dcgan_model_def.Hparams()
+        x_hat_full = celebA_dcgan_model_def.generator(model_hparams, z_full, train=False, reuse=False)
+        x_hat_full = x_hat_full[:batch_size]
+        restore_vars = celebA_dcgan_model_def.gen_restore_vars()
+        restore_dict = {var.op.name: var for var in tf.global_variables() if var.op.name in restore_vars}
+        restore_path = tf.train.latest_checkpoint(hparams.pretrained_model_dir)
+        return x_hat_full, restore_dict, restore_path
+
+    def gen(z, hparams):
+        assert hparams.batch_size in [1, 64], 'batch size should be either 64 or 1'
+        z_full = tf.zeros([64, 100]) + z
+        model_hparams = celebA_dcgan_model_def.Hparams()
+        x_hat_full = celebA_dcgan_model_def.generator(model_hparams, z_full, train=False, reuse=True)
+        x_hat_full = x_hat_full[:batch_size]
+        return x_hat_full[0]
+
+
+    # X_hat output, Initializer, Restore
+    x_hat_full, restore_dict_gen, restore_path_gen = dcgan_gen(z_batch, hparams)
+
+    
+    # get inputs
+    xs_dict = model_input(hparams) #{0: img}
+    x_true = xs_dict[0].reshape(1,-1)
+    # print('original type:')
+    # print(x_true.dtype)
+
+    
+    #mask
+    dim_inpaint = int(np.sum(mask))
+    A = np.random.randn(dim_like, num_measurements)
+
+
+    # Set up palceholders
+    z_batch = tf.Variable(tf.random_normal([1, 100]), name='z_batch')
+
+
+    #mcmc
+    def joint_log_prob_ipt(z):              
+        gen_out = gen(z, hparams) #64 64 3
+        # diff_img = gen_out - tf.constant(x_true) #64 64 3
+        # visible_img = tf.boolean_mask(diff_img, mask) #64 64 3
+        # visible_img = tf.reshape(visible_img, [dim_inpaint])
+        visible_out = gen_out * mask
+        gen_out_compress = tf.matmul(tf.reshape(visible_out, [1,-1]), A) #(1,12288) @ (12288,n_mea) = (1,n_mea)
+        x_true_compress = tf.matmul(x_true, A) #(1,12288) @ (12288,n_mea) = (1,n_mea)
+        diff_img = gen_out_compress - x_true_compress #(1,n_mea)
+
+        prior = tfd.MultivariateNormalDiag(loc=np.zeros(100, dtype=np.float32), scale_diag=np.ones(100, dtype=np.float32))
+        like = tfd.MultivariateNormalDiag(loc=np.zeros(num_measurements, dtype=np.float32), scale_diag=np.ones(num_measurements, dtype=np.float32))
+        return (prior.log_prob(z) + like.log_prob(diff_img))
+                                            
+    def unnormalized_posterior(z):
+        return joint_log_prob_ipt(z)
+
+    hmc = tfp.mcmc.HamiltonianMonteCarlo(
+        target_log_prob_fn=unnormalized_posterior, 
+        step_size=0.1,
+        num_leapfrog_steps=3)
+
+    adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(
+        hmc,
+        num_adaptation_steps=int(burn * 0.8))
+
+    samples, [st_size, log_accept_ratio] = tfp.mcmc.sample_chain(
+        num_results=N,
+        num_burnin_steps=burn,
+        current_state=z_batch,
+        kernel=adaptive_hmc,
+        trace_fn=lambda _, pkr: [pkr.inner_results.accepted_results.step_size, pkr.inner_results.log_accept_ratio]) #check usuage?
+
+    p_accept = tf.reduce_mean(tf.exp(tf.minimum(log_accept_ratio, 0.)))
+
+
+    #config
+    config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    config.gpu_options.allow_growth = True
+
+    
+    #session
+    with tf.Session(config=config) as sess:
+        #Ini
+        sess.run(tf.global_variables_initializer())
+
+        #Load
+        restorer_gen = tf.train.Saver(var_list=restore_dict_gen)
+        restorer_gen.restore(sess, restore_path_gen)
+
+        #mcmc
+        for i in range(round_mcmc_start,round_mcmc): 
+            if i == 0:
+                z_ipt_inst = np.random.normal(size=[1, 100]).astype(np.float32)
+                samples_ = sess.run(samples, feed_dict={z_batch: z_ipt_inst})
+                np.save('mask_{}_round_{}_mcmc_test_samples.npy'.format(dim_inpaint, N*(i+1)), samples_)
+                print('mask {} round {}: acceptance ratio = {}'.format(dim_inpaint, i, sess.run(p_accept, feed_dict={z_batch: z_ipt_inst})))
+                print('mask {} round {}: complete!'.format(dim_inpaint, i))
+            else:
+                inpaint_samps = np.load('mask_{}_round_{}_mcmc_test_samples.npy'.format(dim_inpaint, N*i))
+                print('successfully loaded: mask_{}_round_{}_mcmc_test_samples.npy'.format(dim_inpaint, N*i))
+                z_ipt_inst = inpaint_samps[-1,:,:]
+                samples_ = sess.run(samples, feed_dict={z_batch: z_ipt_inst})  
+                np.save('mask_{}_round_{}_mcmc_test_samples.npy'.format(dim_inpaint, N*(i+1)), samples_)
+                print('mask {} round {}: acceptance ratio = {}'.format(dim_inpaint, i, sess.run(p_accept, feed_dict={z_batch: z_ipt_inst})))
+                print('mask {} round {}: complete!'.format(dim_inpaint, i))
 
 
 
@@ -776,15 +897,26 @@ if __name__ == '__main__':
 
     
     faulthandler.register(signal.SIGUSR1)
-    #adaptive_mcmc
+    # #adaptive_mcmc
+    # for i in range(12):
+    #     if i == 0:
+    #         mcmc_main(HPARAMS, np.zeros((64, 64, 3)), round_mcmc=1)
+    #         new_mask, new_used_indice_list = stats_main(HPARAMS, mask=np.zeros((64, 64, 3)), round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=None, first_count=True, block_per_round=4, lambdas=1.5)
+    #     else:
+    #         mcmc_main(HPARAMS, new_mask, round_mcmc=1)
+    #         new_mask, new_var_list = stats_main(HPARAMS, mask=new_mask, round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=new_used_indice_list, first_count=False, block_per_round=4, lambdas=1.5)
+
+    
+    #adaptive compressing 
     for i in range(12):
         if i == 0:
-            inpaint_mcmc_main(HPARAMS, np.zeros((64, 64, 3)), round_mcmc=1)
-            new_mask, new_used_indice_list = inpaint_stats_main(HPARAMS, mask=np.zeros((64, 64, 3)), round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=None, first_count=True, block_per_round=4, lambdas=1.5)
+            #compress_mcmc_main(HPARAMS, np.zeros((64, 64, 3)), round_mcmc=1)
+            new_mask, new_used_indice_list = compress_stats_main(HPARAMS, mask=np.zeros((64, 64, 3)), round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=None, first_count=True, block_per_round=4, lambdas=1.5)
         else:
-            inpaint_mcmc_main(HPARAMS, new_mask, round_mcmc=1)
-            new_mask, new_var_list = inpaint_stats_main(HPARAMS, mask=new_mask, round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=new_used_indice_list, first_count=False, block_per_round=4, lambdas=1.5)
-
+            compress_mcmc_main(HPARAMS, new_mask, round_mcmc=1)
+            new_mask, new_var_list = compress_stats_main(HPARAMS, mask=new_mask, round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=new_used_indice_list, first_count=False, block_per_round=4, lambdas=1.5)
+    
+    
     # new_mask = stats_main(HPARAMS, round_mcmc=10, n_sample=2000, inpaint_size=8)
     # new_mask = np.load('mask.npy')
     # mcmc_main(HPARAMS, new_mask, round_mcmc=2)
