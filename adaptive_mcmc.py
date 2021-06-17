@@ -32,6 +32,26 @@ import faulthandler
 import signal
 
 
+def x_input(hparams, dim_like_, noise_var_):
+    np.random.seed(hparams.seed_no)
+    seed_no = hparams.seed_no
+    xs_dict = model_input(hparams) #{0: img}
+    x_true = xs_dict[0].reshape(hparams.image_shape)
+    x_true = x_true.astype('float32')
+    noisefile_path = 'noise3d_var{}_seed{}_dim{}.npy'.format(noise_var_, seed_no, dim_like_)
+    if not os.path.exists(noisefile_path):
+        print('**** noise file does not exist... creating new one ****')
+        if dim_like_ != 12288:
+            noise_mat3d = np.reshape(np.random.multivariate_normal(mean=np.zeros((dim_like_), dtype=np.float32), cov=np.eye(dim_like_, dim_like_)*noise_var_, size=1), (1,dim_like_))
+        else:
+            noise_mat3d = np.reshape(np.random.multivariate_normal(mean=np.zeros((dim_like_), dtype=np.float32), cov=np.eye(dim_like_, dim_like_)*noise_var_, size=1), (64,64,3)) #dtype=np.float32
+        noise_mat3d = noise_mat3d.astype('float32')
+        np.save(noisefile_path, noise_mat3d)
+    noise_mat3d = np.load(noisefile_path)
+    # x_noise = x_true + noise_mat3d 
+    return x_true, noise_mat3d
+
+
 def stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, used_indice_list=None, first_count=False, block_per_round=4, lambdas=0.9):
     
     #parameter 
@@ -42,6 +62,9 @@ def stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, used_indice_
     z_dim = 100
     dim_prior = z_dim #100
     dim_like = 64*64*3
+    noise_var = hparams.noise_std
+    seed_no = hparams.seed_no
+
 
     
     #load posterior sample
@@ -62,8 +85,8 @@ def stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, used_indice_
 
 
     #get input
-    xs_dict = model_input(hparams) #{0: img}
-    x_true = xs_dict[0].reshape(hparams.image_shape)
+    x_true, noise = x_input(hparams, dim_like, noise_var)
+    x_noise = x_true + noise
 
 
     #mask
@@ -100,7 +123,7 @@ def stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, used_indice_
     # X_hat, Initializer, Restore
     _, restore_dict_gen, restore_path_gen = dcgan_gen(z_batch, hparams)
     gen_out = gen(z_batch, hparams) #64 64 3
-    diff_img = gen_out - tf.constant(x_true) #64 64 3
+    diff_img = gen_out - tf.constant(x_noise) #64 64 3
     visible_img = tf.boolean_mask(diff_img, mask) #64 64 3
     visible_img = tf.reshape(visible_img, [dim_inpaint])
 
@@ -129,7 +152,7 @@ def stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, used_indice_
             x_mean = x_mean + g_z #(64,64,3)
             x2_mean = x2_mean + g_z**2 #(64,64,3)
             #loss[(ii*batch_size)+kk] = 0.5*np.linalg.norm(diff[kk,:,:,:])**2 + 0.5*noise_var*np.linalg.norm(eff_samps[(ii*batch_size)+kk, :])**2
-            loss[ii] = 0.5*np.linalg.norm(diff)**2
+            loss[ii] = 0.5*np.linalg.norm(diff)**2 + 0.5*noise_var*np.linalg.norm(eff_samps[ii, :])**2 #!!!!jun15
             # if ii % 20 == 0:
             #     g_z = (g_z+1.)/2.
             #     g_z = g_z * 255.
@@ -333,7 +356,6 @@ def stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, used_indice_
         return mask, used_indice
 
 
-
 def mcmc_main(hparams, mask, round_mcmc=10, round_mcmc_start=0):
     
     #parameter
@@ -341,6 +363,8 @@ def mcmc_main(hparams, mask, round_mcmc=10, round_mcmc_start=0):
     batch_size = 1
     N = 2000
     burn = int(0.5*N)
+    noise_var = hparams.noise_std
+    seed_no = hparams.seed_no
 
 
     # Set up palceholders
@@ -373,10 +397,18 @@ def mcmc_main(hparams, mask, round_mcmc=10, round_mcmc_start=0):
 
     
     # get inputs
-    xs_dict = model_input(hparams) #{0: img}
-    x_true = xs_dict[0].reshape(hparams.image_shape)
-    # print('original type:')
-    # print(x_true.dtype)
+    # xs_dict = model_input(hparams) #{0: img}
+    # x_true = xs_dict[0].reshape(hparams.image_shape)
+    # noisefile_path = 'noise3d_var{}_seed{}.npy'.format(noise_var, seed_no)
+    # if not os.path.exists(noisefile_path):
+    #     print('**** noise file does not exist... creating new one ****')
+    #     noise_mat3d = np.reshape(np.random.multivariate_normal(mean=np.zeros((dim_like)), cov=np.eye(dim_like, dim_like)*noise_var, size=1), (64,64,3))
+    #     np.save(noisefile_path, noise_mat3d)
+    # noise_mat3d = np.load(noisefile_path)
+    # x_noise = x_true + noise_mat3d ###!!!jun15
+    x_true, noise = x_input(hparams, dim_like, noise_var)
+    x_noise = x_true + noise
+
 
     
     #mask
@@ -390,11 +422,11 @@ def mcmc_main(hparams, mask, round_mcmc=10, round_mcmc_start=0):
     #mcmc
     def joint_log_prob_ipt(z):              
         gen_out = gen(z, hparams) #64 64 3
-        diff_img = gen_out - tf.constant(x_true) #64 64 3
+        diff_img = gen_out - tf.constant(x_noise) #64 64 3
         visible_img = tf.boolean_mask(diff_img, mask) #64 64 3
         visible_img = tf.reshape(visible_img, [dim_inpaint])
         prior = tfd.MultivariateNormalDiag(loc=np.zeros(100, dtype=np.float32), scale_diag=np.ones(100, dtype=np.float32))
-        like = tfd.MultivariateNormalDiag(loc=np.zeros(dim_inpaint, dtype=np.float32), scale_diag=np.ones(dim_inpaint, dtype=np.float32))
+        like = tfd.MultivariateNormalDiag(loc=np.zeros(dim_inpaint, dtype=np.float32), scale_diag=np.sqrt(noise_var)*np.ones(dim_inpaint, dtype=np.float32)) ###!!!jun15
         return (prior.log_prob(z) + like.log_prob(visible_img))
                                             
     def unnormalized_posterior(z):
@@ -464,6 +496,7 @@ def compress_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, use
     dim_prior = z_dim #100
     dim_like = 64*64*3
     num_measurements = 500
+    noise_var = hparams.noise_std
 
     
     #load posterior sample
@@ -484,8 +517,10 @@ def compress_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, use
 
 
     #get input
-    xs_dict = model_input(hparams) #{0: img}
-    x_true = xs_dict[0].reshape(1,-1) #(1,12288) 
+    # xs_dict = model_input(hparams) #{0: img}
+    # x_true = xs_dict[0].reshape(1,-1) #(1,12288) 
+    x_true, noise = x_input(hparams, num_measurements, noise_var)
+    
 
 
     #matrix
@@ -524,7 +559,7 @@ def compress_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, use
     visible_out = gen_out * mask
     gen_out_compress = tf.matmul(tf.reshape(visible_out, [1,-1]), A) #(1,12288) @ (12288,n_mea) = (1,n_mea)
     x_true_compress = tf.matmul(x_true, A) #(1,12288) @ (12288,n_mea) = (1,n_mea)
-    diff_img = gen_out_compress - x_true_compress #(1,n_mea)
+    diff_img = gen_out_compress - x_true_compress + noise #(1,n_mea)
 
 
     #config
@@ -551,7 +586,8 @@ def compress_stats_main(hparams, mask, round_mcmc, n_sample, inpaint_size=8, use
             x_mean = x_mean + g_z #(64,64,3)
             x2_mean = x2_mean + g_z**2 #(64,64,3)
             #loss[(ii*batch_size)+kk] = 0.5*np.linalg.norm(diff[kk,:,:,:])**2 + 0.5*noise_var*np.linalg.norm(eff_samps[(ii*batch_size)+kk, :])**2
-            loss[ii] = 0.5*np.linalg.norm(diff)**2
+            #loss[ii] = 0.5*np.linalg.norm(diff)**2
+            loss[ii] = 0.5*np.linalg.norm(diff)**2 + 0.5*noise_var*np.linalg.norm(eff_samps[ii, :])**2 #!!!!jun15
             # if ii % 20 == 0:
             #     g_z = (g_z+1.)/2.
             #     g_z = g_z * 255.
@@ -698,7 +734,8 @@ def compress_mcmc_main(hparams, mask, round_mcmc=10, round_mcmc_start=0):
     batch_size = 1
     N = 2000
     burn = int(0.5*N)
-    num_measurements = 500
+    num_measurements = 500 #!!!!!!!!!only changeable jun16, need to align with number of ones (in one dimension) in mask 
+    noise_var = hparams.noise_std
 
 
     # Set up palceholders
@@ -731,15 +768,15 @@ def compress_mcmc_main(hparams, mask, round_mcmc=10, round_mcmc_start=0):
 
     
     # get inputs
-    xs_dict = model_input(hparams) #{0: img}
-    x_true = xs_dict[0].reshape(1,-1)
+    # xs_dict = model_input(hparams) #{0: img}
+    # x_true = xs_dict[0].reshape(1,-1)
     # print('original type:')
     # print(x_true.dtype)
-
+    x_true, noise = x_input(hparams, num_measurements, noise_var) #!!!!!!!!!only changeable jun16
     
     #mask
     dim_inpaint = int(np.sum(mask))
-    A = np.random.randn(dim_like, num_measurements)
+    A = np.random.randn(dim_like, num_measurements) #!!!!!!!!!only changeable jun16
 
 
     # Set up palceholders
@@ -755,10 +792,10 @@ def compress_mcmc_main(hparams, mask, round_mcmc=10, round_mcmc_start=0):
         visible_out = gen_out * mask
         gen_out_compress = tf.matmul(tf.reshape(visible_out, [1,-1]), A) #(1,12288) @ (12288,n_mea) = (1,n_mea)
         x_true_compress = tf.matmul(x_true, A) #(1,12288) @ (12288,n_mea) = (1,n_mea)
-        diff_img = gen_out_compress - x_true_compress #(1,n_mea)
+        diff_img = gen_out_compress - x_true_compress + noise #(1,n_mea)
 
         prior = tfd.MultivariateNormalDiag(loc=np.zeros(100, dtype=np.float32), scale_diag=np.ones(100, dtype=np.float32))
-        like = tfd.MultivariateNormalDiag(loc=np.zeros(num_measurements, dtype=np.float32), scale_diag=np.ones(num_measurements, dtype=np.float32))
+        like = tfd.MultivariateNormalDiag(loc=np.zeros(num_measurements, dtype=np.float32), scale_diag=np.sqrt(noise_var)*np.ones(num_measurements, dtype=np.float32))
         return (prior.log_prob(z) + like.log_prob(diff_img))
                                             
     def unnormalized_posterior(z):
@@ -833,7 +870,8 @@ if __name__ == '__main__':
 
     # Problem definition
     PARSER.add_argument('--measurement-type', type=str, default='inpaint', help='measurement type')
-    PARSER.add_argument('--noise-std', type=float, default=0.0, help='std dev of noise')
+    PARSER.add_argument('--noise-std', type=float, default=0.1, help='std dev of noise')
+    PARSER.add_argument('--seed-no', type=int, default=1008)
 
     # Measurement type specific hparams
     PARSER.add_argument('--num-measurements', type=int, default=200, help='number of gaussian measurements')
@@ -897,24 +935,24 @@ if __name__ == '__main__':
 
     
     faulthandler.register(signal.SIGUSR1)
-    # #adaptive_mcmc
-    # for i in range(12):
-    #     if i == 0:
-    #         mcmc_main(HPARAMS, np.zeros((64, 64, 3)), round_mcmc=1)
-    #         new_mask, new_used_indice_list = stats_main(HPARAMS, mask=np.zeros((64, 64, 3)), round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=None, first_count=True, block_per_round=4, lambdas=1.5)
-    #     else:
-    #         mcmc_main(HPARAMS, new_mask, round_mcmc=1)
-    #         new_mask, new_var_list = stats_main(HPARAMS, mask=new_mask, round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=new_used_indice_list, first_count=False, block_per_round=4, lambdas=1.5)
-
-    
-    #adaptive compressing 
+    #adaptive_mcmc
     for i in range(12):
         if i == 0:
-            #compress_mcmc_main(HPARAMS, np.zeros((64, 64, 3)), round_mcmc=1)
-            new_mask, new_used_indice_list = compress_stats_main(HPARAMS, mask=np.zeros((64, 64, 3)), round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=None, first_count=True, block_per_round=4, lambdas=1.5)
+            mcmc_main(HPARAMS, np.zeros((64, 64, 3)), round_mcmc=1)
+            new_mask, new_used_indice_list = stats_main(HPARAMS, mask=np.zeros((64, 64, 3)), round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=None, first_count=True, block_per_round=4, lambdas=1.5)
         else:
-            compress_mcmc_main(HPARAMS, new_mask, round_mcmc=1)
-            new_mask, new_var_list = compress_stats_main(HPARAMS, mask=new_mask, round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=new_used_indice_list, first_count=False, block_per_round=4, lambdas=1.5)
+            mcmc_main(HPARAMS, new_mask, round_mcmc=1)
+            new_mask, new_var_list = stats_main(HPARAMS, mask=new_mask, round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=new_used_indice_list, first_count=False, block_per_round=4, lambdas=1.5)
+
+    
+    # # adaptive compressing 
+    # for i in range(12):
+    #     if i == 0:
+    #         compress_mcmc_main(HPARAMS, np.zeros((64, 64, 3)), round_mcmc=1)
+    #         new_mask, new_used_indice_list = compress_stats_main(HPARAMS, mask=np.zeros((64, 64, 3)), round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=None, first_count=True, block_per_round=4, lambdas=1.5)
+    #     else:
+    #         compress_mcmc_main(HPARAMS, new_mask, round_mcmc=1)
+    #         new_mask, new_var_list = compress_stats_main(HPARAMS, mask=new_mask, round_mcmc=1, n_sample=100, inpaint_size=8, used_indice_list=new_used_indice_list, first_count=False, block_per_round=4, lambdas=1.5)
     
     
     # new_mask = stats_main(HPARAMS, round_mcmc=10, n_sample=2000, inpaint_size=8)
