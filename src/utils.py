@@ -41,6 +41,14 @@ def get_l2_loss(image1, image2):
     assert image1.shape == image2.shape
     return np.mean((image1 - image2)**2)
 
+def get_l2_loss_region(image1, image2): #aug9
+    """Get L2 loss between regions"""
+    mask_ = np.load('../../uncertainty/celeb_var_top_1_2_adhoc.npy') #(256,256)
+    mask = np.repeat(mask_[:, :, np.newaxis], 3, -1)
+    center_loss = np.mean((image1*mask.reshape(-1) - image2*mask.reshape(-1))**2)
+    corner_loss = np.mean((image1*np.where(mask.reshape(-1) == 1, 0, 1) - image2*np.where(mask.reshape(-1) == 1, 0, 1))**2)
+    return center_loss, corner_loss
+
 
 def get_measurement_loss(x_hat, A, y):
     """Get measurement loss of the estimated image"""
