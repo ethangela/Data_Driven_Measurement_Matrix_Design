@@ -104,19 +104,6 @@ def get_estimator(hparams, model_type):
             estimator = mnist_estimators.vae_annealed_langevin_estimator(hparams) #added by Young 21 Jul  #refined by Young 26 Jul
         else:
             raise NotImplementedError
-    elif hparams.dataset == 'celebA':
-        if model_type == 'lasso-dct':
-            estimator = celebA_estimators.lasso_dct_estimator(hparams)
-        elif model_type == 'lasso-wavelet':
-            estimator = celebA_estimators.lasso_wavelet_estimator(hparams)
-        elif model_type == 'lasso-wavelet-ycbcr':
-            estimator = celebA_estimators.lasso_wavelet_ycbcr_estimator(hparams)
-        elif model_type == 'k-sparse-wavelet':
-            estimator = celebA_estimators.k_sparse_wavelet_estimator(hparams)
-        elif model_type == 'dcgan':
-            estimator = celebA_estimators.dcgan_estimator(hparams)
-        else:
-            raise NotImplementedError
     return estimator
 
 
