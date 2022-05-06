@@ -9,7 +9,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from gurobipy import *
 from utils import l1_min_avg_err
-from baselines import PCA_l1
 from model import L1AE
 
 #import tensorflow as tf
@@ -288,7 +287,7 @@ class data_driven:
 
 
 if __name__ == '__main__':
-    pickle_file_path = './result_Oct1.pkl'
+    pickle_file_path = './result_l1ae.pkl'
 
     
     
@@ -347,71 +346,49 @@ if __name__ == '__main__':
 
                 
                 
-                # # gaussian
-                # t0 = time()
-                # G = np.random.randn(1000, mea_dim) / np.sqrt(mea_dim)
-                # Y = X_test.dot(G) + noise_level * np.random.randn(X_test.shape[0], mea_dim) / np.sqrt(mea_dim)
-                # avg_err, exact_ratio, solved_ratio = l1_min_avg_err(np.transpose(G), Y, X_test, use_pos=True)
-                # print('average error', avg_err)
-                # print('exact ratio', exact_ratio)
-                # print('solved ratio', solved_ratio)
-                # t1 = time()
-                # print(f"L1-min takes {t1-t0} secs")
+                # gaussian
+                t0 = time()
+                G = np.random.randn(1000, mea_dim) / np.sqrt(mea_dim)
+                Y = X_test.dot(G) + noise_level * np.random.randn(X_test.shape[0], mea_dim) / np.sqrt(mea_dim)
+                avg_err, exact_ratio, solved_ratio = l1_min_avg_err(np.transpose(G), Y, X_test, use_pos=True)
+                print('average error', avg_err)
+                print('exact ratio', exact_ratio)
+                print('solved ratio', solved_ratio)
+                t1 = time()
+                print(f"L1-min takes {t1-t0} secs")
 
-                # if not os.path.exists(pickle_file_path):
-                #     d = {'measurement_type':['gaussian'], 'measurement_num':[mea_dim], 'MSE_loss':[avg_err], 'noise':[noise_info], 'dataset':[data_id]}
-                #     df = pd.DataFrame(data=d)
-                #     df.to_pickle(pickle_file_path)
-                # else:
-                #     d = {'measurement_type':'gaussian', 'measurement_num':mea_dim, 'MSE_loss':avg_err, 'noise':noise_info, 'dataset':data_id}
-                #     df = pd.read_pickle(pickle_file_path)
-                #     df = df.append(d, ignore_index=True)
-                #     df.to_pickle(pickle_file_path)
-
-
-
-                # # PCA
-                # print("Start PCA and l1-min......")
-                # t0 = time()
-                # res = PCA_l1(X_train, X_test, input_dim=1000, emb_dim=mea_dim)
-                # print('average error', res['l1_p_err_pos'])
-                # print('exact ratio', res['l1_p_exact_pos'])
-                # print('pca error', res['pca_err'])
-                # t1 = time()
-                # print(f"PCA and l1-min takes {t1-t0} secs")
-
-                # if not os.path.exists(pickle_file_path):
-                #     d = {'measurement_type':['PCA'], 'measurement_num':[mea_dim], 'MSE_loss':[avg_err], 'noise':[noise_info], 'dataset':[data_id]}
-                #     df = pd.DataFrame(data=d)
-                #     df.to_pickle(pickle_file_path)
-                # else:
-                #     d = {'measurement_type':'PCA', 'measurement_num':mea_dim, 'MSE_loss':avg_err, 'noise':noise_info, 'dataset':data_id}
-                #     df = pd.read_pickle(pickle_file_path)
-                #     df = df.append(d, ignore_index=True)
-                #     df.to_pickle(pickle_file_path)
+                if not os.path.exists(pickle_file_path):
+                    d = {'measurement_type':['gaussian'], 'measurement_num':[mea_dim], 'MSE_loss':[avg_err], 'noise':[noise_info], 'dataset':[data_id]}
+                    df = pd.DataFrame(data=d)
+                    df.to_pickle(pickle_file_path)
+                else:
+                    d = {'measurement_type':'gaussian', 'measurement_num':mea_dim, 'MSE_loss':avg_err, 'noise':noise_info, 'dataset':data_id}
+                    df = pd.read_pickle(pickle_file_path)
+                    df = df.append(d, ignore_index=True)
+                    df.to_pickle(pickle_file_path)
 
 
 
-                # #propotional
-                # t0 = time()
-                # G = propotional_matrix(input_dim=1000, emb_dim=mea_dim, powerlaw_exp=1, powerlaw_bias=1, avg_sparsity=10)
-                # Y = X_test.dot(G) + noise_level * np.random.randn(X_test.shape[0], mea_dim) / np.sqrt(mea_dim)
-                # avg_err, exact_ratio, solved_ratio = l1_min_avg_err(np.transpose(G), Y, X_test, use_pos=True)
-                # print('average error', avg_err)
-                # print('exact ratio', exact_ratio)
-                # print('solved ratio', solved_ratio)
-                # t1 = time()
-                # print(f"L1-min of propotional G takes {t1-t0} secs")
+                #propotional
+                t0 = time()
+                G = propotional_matrix(input_dim=1000, emb_dim=mea_dim, powerlaw_exp=1, powerlaw_bias=1, avg_sparsity=10)
+                Y = X_test.dot(G) + noise_level * np.random.randn(X_test.shape[0], mea_dim) / np.sqrt(mea_dim)
+                avg_err, exact_ratio, solved_ratio = l1_min_avg_err(np.transpose(G), Y, X_test, use_pos=True)
+                print('average error', avg_err)
+                print('exact ratio', exact_ratio)
+                print('solved ratio', solved_ratio)
+                t1 = time()
+                print(f"L1-min of propotional G takes {t1-t0} secs")
 
-                # if not os.path.exists(pickle_file_path):
-                #     d = {'measurement_type':['propotional'], 'measurement_num':[mea_dim], 'MSE_loss':[avg_err], 'noise':[noise_info], 'dataset':[data_id]}
-                #     df = pd.DataFrame(data=d)
-                #     df.to_pickle(pickle_file_path)
-                # else:
-                #     d = {'measurement_type':'propotional', 'measurement_num':mea_dim, 'MSE_loss':avg_err, 'noise':noise_info, 'dataset':data_id}
-                #     df = pd.read_pickle(pickle_file_path)
-                #     df = df.append(d, ignore_index=True)
-                #     df.to_pickle(pickle_file_path)
+                if not os.path.exists(pickle_file_path):
+                    d = {'measurement_type':['propotional'], 'measurement_num':[mea_dim], 'MSE_loss':[avg_err], 'noise':[noise_info], 'dataset':[data_id]}
+                    df = pd.DataFrame(data=d)
+                    df.to_pickle(pickle_file_path)
+                else:
+                    d = {'measurement_type':'propotional', 'measurement_num':mea_dim, 'MSE_loss':avg_err, 'noise':noise_info, 'dataset':data_id}
+                    df = pd.read_pickle(pickle_file_path)
+                    df = df.append(d, ignore_index=True)
+                    df.to_pickle(pickle_file_path)
 
 
 
