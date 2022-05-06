@@ -1,5 +1,4 @@
-"""Compressed sensing main script"""
-# pylint: disable=C0301,C0103,C0111
+"""main script"""
 
 from __future__ import division
 import os
@@ -89,7 +88,7 @@ def main(hparams):
     xs_dict[0] = img.reshape(-1)
     
     noise_info = '_'.join(str(hparams.noise_std).split('.'))
-    save_dir = os.path.join('../../src', str(hparams.img_no))
+    save_dir = os.path.join('./', str(hparams.img_no))
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     save_image(img, os.path.join(save_dir,'{}_img_{}_original.png'.format(hparams.dataset, hparams.img_no)))
@@ -158,7 +157,7 @@ def main(hparams):
             # z_hats[key] = z_hat_batch[i]
             likelihoods[key] = likelihood_batch[i]
 
-            # log jul29
+            # log 
             if hparams.measurement_type == 'gaussian_block':
                 num_observe_info = hparams.num_observe
             else:
@@ -183,18 +182,18 @@ def main(hparams):
                 df.to_pickle(pickle_file_path)
             
 
-            # output saveing jul29
+            # output saveing 
             img = x_hat.reshape(hparams.image_shape) 
             
             if hparams.measurement_type == 'gaussian_block':
-                save_dir = '../../src/{}/extreme/top_{}/noise_{}/measurement_{}'.format(hparams.img_no, hparams.num_observe, noise_info, hparams.num_measurements)
+                save_dir = './{}/extreme/top_{}/noise_{}/measurement_{}'.format(hparams.img_no, hparams.num_observe, noise_info, hparams.num_measurements)
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)
                 save_image(img, os.path.join(save_dir, 'output_EXTREME_observe_top_{}_measurement_{}_noise_{}.jpg'.format(hparams.num_observe, hparams.num_measurements, noise_info)))
             
             elif hparams.measurement_type == 'gaussian_block_general':
-                save_dir = '../../src/{}/general/noise_{}/measurement_{}'.format(hparams.img_no, noise_info, hparams.num_measurements)
-                npy_dir = '../../src/{}/general/noise_{}/measurement_{}/npy'.format(hparams.img_no, noise_info, hparams.num_measurements)
+                save_dir = './{}/general/noise_{}/measurement_{}'.format(hparams.img_no, noise_info, hparams.num_measurements)
+                npy_dir = './{}/general/noise_{}/measurement_{}/npy'.format(hparams.img_no, noise_info, hparams.num_measurements)
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)
                 if not os.path.exists(npy_dir):
@@ -203,8 +202,8 @@ def main(hparams):
                 np.save( os.path.join(npy_dir, 'l2_pixl_loss_matrix_GENERAL_measurement_{}_noise_{}.npy'.format(hparams.num_measurements, noise_info)), l2_pixl_loss_matrix ) 
             
             elif hparams.measurement_type == 'gaussian':
-                save_dir = '../../src/{}/full_gaussian/noise_{}/measurement_{}'.format(hparams.img_no, noise_info, hparams.num_measurements)
-                npy_dir = '../../src/{}/full_gaussian/noise_{}/measurement_{}/npy'.format(hparams.img_no, noise_info, hparams.num_measurements)
+                save_dir = './{}/full_gaussian/noise_{}/measurement_{}'.format(hparams.img_no, noise_info, hparams.num_measurements)
+                npy_dir = './{}/full_gaussian/noise_{}/measurement_{}/npy'.format(hparams.img_no, noise_info, hparams.num_measurements)
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)
                 if not os.path.exists(npy_dir):
@@ -213,8 +212,8 @@ def main(hparams):
                 np.save( os.path.join(npy_dir, 'l2_pixl_loss_matrix_FULL_GAUSSIAN_measurement_{}_noise_{}.npy'.format(hparams.num_measurements, noise_info)), l2_pixl_loss_matrix ) 
 
             elif hparams.measurement_type == 'gaussian_block_adaptive': 
-                save_dir = '../../src/{}/adaptive/noise_{}/measurement_{}'.format(hparams.img_no, noise_info, hparams.num_measurements)
-                npy_dir = '../../src/{}/adaptive/noise_{}/measurement_{}/npy'.format(hparams.img_no, noise_info, hparams.num_measurements)
+                save_dir = './{}/adaptive/noise_{}/measurement_{}'.format(hparams.img_no, noise_info, hparams.num_measurements)
+                npy_dir = './{}/adaptive/noise_{}/measurement_{}/npy'.format(hparams.img_no, noise_info, hparams.num_measurements)
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)
                 if not os.path.exists(npy_dir):
@@ -229,9 +228,9 @@ def main(hparams):
                 save_image(img, os.path.join(save_dir, 'reconstruction_from_ROUND_{}.jpg'.format(hparams.adaptive_round_count)))
 
             elif hparams.measurement_type == 'gaussian_data_driven': 
-                save_dir = '../../src/{}/data_driven/noise_{}/measurement_{}'.format(hparams.img_no, noise_info, hparams.num_measurements)
-                npy_dir = '../../src/{}/data_driven/noise_{}/measurement_{}/npy'.format(hparams.img_no, noise_info, hparams.num_measurements)
-                load_npy_dir = '../../src/{}/data_driven/noise_{}/measurement_{}/npy'.format(hparams.load_img_no, noise_info, hparams.num_measurements)
+                save_dir = './{}/data_driven/noise_{}/measurement_{}'.format(hparams.img_no, noise_info, hparams.num_measurements)
+                npy_dir = './{}/data_driven/noise_{}/measurement_{}/npy'.format(hparams.img_no, noise_info, hparams.num_measurements)
+                load_npy_dir = './{}/data_driven/noise_{}/measurement_{}/npy'.format(hparams.load_img_no, noise_info, hparams.num_measurements)
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)
                 if not os.path.exists(npy_dir):
@@ -277,49 +276,12 @@ def main(hparams):
 
         print('Processed upto image {0} / {1}'.format(key+1, len(xs_dict)))
 
-        
-    
-
-
-
-
-
-
-    #     # Checkpointing
-    #     if (not hparams.debug) and ((key+1) % hparams.checkpoint_iter == 0):
-    #         utils.checkpoint(x_hats_dict, measurement_losses, l2_losses, z_hats, likelihoods, hparams)
-    #         x_hats_dict = {} 
-    #         print('\nProcessed and saved first ', key+1, 'images\n')
-
-    #     x_batch_dict = {}
-
-    # # Final checkpoint
-    # if not hparams.debug:
-    #     utils.checkpoint(x_hats_dict, measurement_losses, l2_losses, z_hats, likelihoods, hparams)
-    #     print('\nProcessed and saved all {0} image(s)\n'.format(len(xs_dict)))
-
-    # if hparams.print_stats:
-    #     print(hparams.model_type)
-    #     measurement_loss_list = list(measurement_losses.values())
-    #     l2_loss_list = list(l2_losses.values())
-    #     mean_m_loss = np.mean(measurement_loss_list)
-    #     mean_l2_loss = np.mean(l2_loss_list)
-    #     print('mean measurement loss = {0}'.format(mean_m_loss))
-    #     print('mean l2 loss = {0}'.format(mean_l2_loss))
-
-    # # if hparams.image_matrix > 0:
-    # #     utils.image_matrix(xs_dict, x_hats_dict, hparams)
-
-    # # Warn the user that some things were not processsed
-    # if len(x_batch_dict) > 0:
-    #     print('\nDid NOT process last {} images because they did not fill up the last batch.'.format(len(x_batch_dict)))
-    #     print('Consider rerunning lazily with a smaller batch size.')
 
 if __name__ == '__main__':
     PARSER = ArgumentParser()
 
     # Pretrained model
-    PARSER.add_argument('--checkpoint-path', type=str, default='/home/sunyang/code-cs-fairness-main/checkpoints/glow/graph_unoptimized.pb', help='Path to pretrained model')
+    PARSER.add_argument('--checkpoint-path', type=str, default='./checkpoints/glow/graph_unoptimized.pb', help='Path to pretrained model')
     PARSER.add_argument('--net', type=str, default='glow', help='Name of model. options = [glow, stylegan2, ncsnv2, dd]')
 
     # Input
@@ -400,7 +362,7 @@ if __name__ == '__main__':
     #gaussian matrix
     PARSER.add_argument('--top-ratio-inverse', type=int, default=4)
     PARSER.add_argument('--num-observe', type=int, default=16384)
-    # PARSER.add_argument('--mnist-propotional-var-mask', type=str, default='/home/sunyang/code-cs-fairness-main/uncertainty2/mnist_propotional_var_mask.npy')
+    # PARSER.add_argument('--mnist-propotional-var-mask', type=str, default='./uncertainty2/mnist_propotional_var_mask.npy')
 
     #adaptive
     PARSER.add_argument('--adaptive-round-count', type=int, default=-1)
@@ -413,21 +375,21 @@ if __name__ == '__main__':
     PARSER.set_defaults(annealed=True)
 
     #log
-    PARSER.add_argument('--pickle-file-path', type=str, default='/home/sunyang/code-cs-fairness-main/src/to_produce_table_chart_feb9_ad.pkl')
-    PARSER.add_argument('--log-file-path', type=str, default='/home/sunyang/code-cs-fairness-main/src/log_out_feb9_ad.txt')
+    PARSER.add_argument('--pickle-file-path', type=str, default='./result_celeba.pkl')
+    PARSER.add_argument('--log-file-path', type=str, default='./log_out_celeba.txt')
 
     # data driven
     PARSER.add_argument('--i', type=int, default=99, help='x-axis idx of block') 
     PARSER.add_argument('--j', type=int, default=99, help='x-axis idx of block') 
-    PARSER.add_argument('--lamb', type=float, default=0.1, help='initial value of lambda') ###sep27!!!
-    PARSER.add_argument('--lamb-decay-rate', type=float, default=0.95, help='lambda decay rate per round') ###sep27!!!
-    PARSER.add_argument('--top-percent', type=float, default=0.33, help='choose top performing pixls') #10
-    PARSER.add_argument('--block-size', type=int, default=16, help='choose top performing pixls') #10
+    PARSER.add_argument('--lamb', type=float, default=0.1, help='initial value of lambda') 
+    PARSER.add_argument('--lamb-decay-rate', type=float, default=0.95, help='lambda decay rate per round') 
+    PARSER.add_argument('--top-percent', type=float, default=0.33, help='choose top performing pixls') 
+    PARSER.add_argument('--block-size', type=int, default=16, help='choose top performing pixls') 
     PARSER.add_argument('--load-img-no', type=int, default=256)
 
 
     HPARAMS = PARSER.parse_args()
-    HPARAMS.input_path = f'/home/sunyang/code-cs-fairness-main/test_images/{HPARAMS.dataset}'
+    HPARAMS.input_path = f'./test_images/{HPARAMS.dataset}'
     if HPARAMS.cuda:
         HPARAMS.device='cuda:0' #for torch only
     else:
@@ -473,11 +435,11 @@ if __name__ == '__main__':
 
     
     #ADDED by Young 29Jul
-    HPARAMS.celeb_block_mask = '/home/sunyang/code-cs-fairness-main/uncertainty2/celeb_var_top_{}_mask.npy'.format(HPARAMS.num_observe)
-    HPARAMS.celeb_propotional_A = '/home/sunyang/code-cs-fairness-main/uncertainty2/celeb_propotional_A_mea_{}.npy'.format(HPARAMS.num_measurements)
-    HPARAMS.celeb_gaussian_A = '/home/sunyang/code-cs-fairness-main/uncertainty2/celeb_gaussian_A_mea_{}.npy'.format(HPARAMS.num_measurements)
-    HPARAMS.celeb_extreme_A = '/home/sunyang/code-cs-fairness-main/uncertainty2/celeb_extreme_A_top_1_{}_mea_{}.npy'.format(HPARAMS.top_ratio_inverse, HPARAMS.num_measurements)
-    HPARAMS.celeb_block_data_driven_A = '/home/sunyang/code-cs-fairness-main/uncertainty2/celeb_block_{}_data_driven_A_i_{}_j_{}_mea_{}.npy'.format(
+    HPARAMS.celeb_block_mask = './uncertainty2/celeb_var_top_{}_mask.npy'.format(HPARAMS.num_observe)
+    HPARAMS.celeb_propotional_A = './uncertainty2/celeb_propotional_A_mea_{}.npy'.format(HPARAMS.num_measurements)
+    HPARAMS.celeb_gaussian_A = './uncertainty2/celeb_gaussian_A_mea_{}.npy'.format(HPARAMS.num_measurements)
+    HPARAMS.celeb_extreme_A = './uncertainty2/celeb_extreme_A_top_1_{}_mea_{}.npy'.format(HPARAMS.top_ratio_inverse, HPARAMS.num_measurements)
+    HPARAMS.celeb_block_data_driven_A = './uncertainty2/celeb_block_{}_data_driven_A_i_{}_j_{}_mea_{}.npy'.format(
         HPARAMS.block_size, HPARAMS.i, HPARAMS.j, HPARAMS.num_measurements)
 
     main(HPARAMS)
