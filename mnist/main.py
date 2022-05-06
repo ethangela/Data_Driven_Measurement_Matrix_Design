@@ -1,5 +1,4 @@
-"""Compressed sensing main script"""
-# pylint: disable=C0301,C0103,C0111
+"""main script"""
 
 from __future__ import division
 import os
@@ -92,21 +91,6 @@ def main(hparams):
         plt.imshow(img, cmap='YlOrRd')
         plt.colorbar()
         plt.savefig(path)
-
-    # if hparams.dataset == 'celebA' and hparams.measurement_type == 'inpaint': #july14!!!!!
-    #     mask = np.load('../src/jul13/inpaint_mask.npy')
-    #     mask_img = img * mask
-    #     imsave('../src/jul13/{}_in_put_mask.jpg'.format(hparams.dataset), mask_img.astype(np.uint8))
-    
-    # if hparams.dataset == 'mnist' and hparams.measurement_type == 'gaussian_block': #july2
-    #     mask = np.load(hparams.mnist_block_mask) #jul13
-    #     mask_img = img.reshape(hparams.image_shape) * mask.reshape(hparams.image_shape) #jul14!!!!
-    #     color_map(mask_img, os.path.join(save_dir,'{}_seed_{}_input_EXTREME_observe_top_{}_noise_{}.jpg'.format(hparams.dataset, hparams.seed_no, hparams.num_observe, noise_info)))
-
-    # if hparams.dataset == 'mnist' and hparams.measurement_type == 'gaussian_block_general': 
-    #     mask = np.load(hparams.mnist_propotional_var_mask)
-    #     mask_img = img.reshape(hparams.image_shape) * mask.reshape(hparams.image_shape) #jul14!!!!
-    #     color_map(mask_img, os.path.join(save_dir,'{}_seed_{}_input_GENERAL_noise_{}.jpg'.format(hparams.dataset, hparams.seed_no, noise_info)))
     
     print('input image(s) saved')
         
@@ -118,15 +102,9 @@ def main(hparams):
 
     x_hats_dict = {model_type : {} for model_type in hparams.model_types} #{'dcgan':{}}
     x_batch_dict = {}
+    
     for key, x in xs_dict.items(): #{0: img}
-        # if not hparams.not_lazy:
-        #     # If lazy, first check if the image has already been
-        #     # saved before by *all* estimators. If yes, then skip this image.
-        #     save_paths = utils.get_save_paths(hparams, key)
-        #     is_saved = all([os.path.isfile(save_path) for save_path in save_paths.values()])
-        #     if is_saved:
-        #         continue
-
+        
         x_batch_dict[key] = x #{0: img}
         if len(x_batch_dict) < hparams.batch_size:
             continue
@@ -137,14 +115,9 @@ def main(hparams):
 
         # Construct measurements
         A = utils.get_A(hparams) #(n_input, n_measurement)
-        
-        if hparams.dataset == 'celebA' and hparams.measurement_type == 'gaussian_block': #jun26
-            mask_gaussian_block = np.load('../src/jul13/mask_gaussian_block.npy')
-            A = mask_gaussian_block * A #(12288,512)*(12288,512)=(12288,512)
-            print('gaussian block matrix set')
-        
-        if hparams.dataset == 'mnist' and hparams.measurement_type == 'gaussian_block': #july2
-            mask_gaussian_block = np.load(hparams.mnist_block_mask) #!!!jul13
+      
+        if hparams.dataset == 'mnist' and hparams.measurement_type == 'gaussian_block': 
+            mask_gaussian_block = np.load(hparams.mnist_block_mask) 
             x_batch = mask_gaussian_block * x_batch #(1,784)*(1,784)=(1,784)
             print('gaussian block matrix set')
         
@@ -217,7 +190,7 @@ def main(hparams):
         x_batch_dict = {}
 
 
-    #tmp output
+    #log output
     for model_type in hparams.model_types:
         print(x_hats_dict[model_type][0].shape) 
         img = x_hats_dict[model_type][0].reshape(hparams.image_shape) 
@@ -226,29 +199,29 @@ def main(hparams):
         img = img * 255.
         
         if hparams.measurement_type == 'gaussian_block':
-            save_dir = '../src/{}/extreme/top_{}/noise_{}/measurement_{}'.format(hparams.seed_no, hparams.num_observe, noise_info, hparams.num_measurements)
+            save_dir = './{}/extreme/top_{}/noise_{}/measurement_{}'.format(hparams.seed_no, hparams.num_observe, noise_info, hparams.num_measurements)
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             imsave( os.path.join(save_dir, 'output_EXTREME_observe_top_{}_measurement_{}_noise_{}.jpg'.format(
                     hparams.num_observe, hparams.num_measurements, noise_info)), img.astype(np.uint8))
         
         elif hparams.measurement_type == 'gaussian_block_general':
-            save_dir = '../src/{}/general/noise_{}/measurement_{}'.format(hparams.seed_no, noise_info, hparams.num_measurements)
+            save_dir = './{}/general/noise_{}/measurement_{}'.format(hparams.seed_no, noise_info, hparams.num_measurements)
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             imsave( os.path.join(save_dir, 'output_GENERAL_measurement_{}_noise_{}.jpg'.format(hparams.num_measurements, noise_info)), img.astype(np.uint8))
             np.save( os.path.join(save_dir, 'l2_pixl_loss_matrix_GENERAL_measurement_{}_noise_{}.npy'.format(hparams.num_measurements, noise_info)), l2_pixl_loss_matrix)
         
         elif hparams.measurement_type == 'gaussian':
-            save_dir = '../src/{}/full_gaussian/noise_{}/measurement_{}'.format(hparams.seed_no, noise_info, hparams.num_measurements)
+            save_dir = './{}/full_gaussian/noise_{}/measurement_{}'.format(hparams.seed_no, noise_info, hparams.num_measurements)
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             imsave( os.path.join(save_dir, 'output_FULL_GAUSSIAN_measurement_{}_noise_{}.jpg'.format(hparams.num_measurements, noise_info)), img.astype(np.uint8))
             np.save( os.path.join(save_dir, 'l2_pixl_loss_matrix_FULL_GAUSSIAN_measurement_{}_noise_{}.npy'.format(hparams.num_measurements, noise_info)), l2_pixl_loss_matrix)
 
         elif hparams.measurement_type == 'gaussian_block_adaptive': 
-            save_dir = '../src/{}/adaptive/noise_{}/measurement_{}'.format(hparams.seed_no, noise_info, hparams.num_measurements)
-            npy_dir = '../src/{}/adaptive/noise_{}/measurement_{}/npy'.format(hparams.seed_no, noise_info, hparams.num_measurements)
+            save_dir = './{}/adaptive/noise_{}/measurement_{}'.format(hparams.seed_no, noise_info, hparams.num_measurements)
+            npy_dir = './{}/adaptive/noise_{}/measurement_{}/npy'.format(hparams.seed_no, noise_info, hparams.num_measurements)
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             if not os.path.exists(npy_dir):
@@ -272,7 +245,7 @@ def main(hparams):
             #mini_batch
             if hparams.mini_batch == 1:
                 if hparams.mini_batch_train == 1:
-                    npy_dir = '../src/data_driven_mini_batch/noise_{}/measurement_{}/npy/round{}'.format(noise_info, hparams.num_measurements, hparams.adaptive_round_count)
+                    npy_dir = './data_driven_mini_batch/noise_{}/measurement_{}/npy/round{}'.format(noise_info, hparams.num_measurements, hparams.adaptive_round_count)
                     if not os.path.exists(npy_dir):
                         os.makedirs(npy_dir)
 
@@ -285,7 +258,7 @@ def main(hparams):
                         l2_pixl_loss_matrix = l2_pixl_loss_matrix/hparams.num_mini_batch #to check if clipped??? ###sep6
                         np.save( os.path.join(npy_dir, 'l2_pixl_loss_matrix_mean.npy'), l2_pixl_loss_matrix ) 
                 else:
-                    save_dir = '../src/{}/data_driven_mini_batch/noise_{}/measurement_{}'.format(hparams.seed_no, noise_info, hparams.num_measurements)
+                    save_dir = './{}/data_driven_mini_batch/noise_{}/measurement_{}'.format(hparams.seed_no, noise_info, hparams.num_measurements)
                     if not os.path.exists(save_dir):
                         os.makedirs(save_dir)
                     imsave( os.path.join(save_dir, 'Reconstruct_from_ROUND_{}.jpg'.format(hparams.adaptive_round_count)), img.astype(np.uint8))
@@ -293,9 +266,9 @@ def main(hparams):
 
 
             else:
-                save_dir = '../src/{}/data_driven/noise_{}/measurement_{}'.format(hparams.seed_no, noise_info, hparams.num_measurements)
-                npy_dir = '../src/{}/data_driven/noise_{}/measurement_{}/npy'.format(hparams.seed_no, noise_info, hparams.num_measurements)
-                load_npy_dir = '../src/{}/data_driven/noise_{}/measurement_{}/npy'.format(hparams.load_seed_no, noise_info, hparams.num_measurements)
+                save_dir = './{}/data_driven/noise_{}/measurement_{}'.format(hparams.seed_no, noise_info, hparams.num_measurements)
+                npy_dir = './{}/data_driven/noise_{}/measurement_{}/npy'.format(hparams.seed_no, noise_info, hparams.num_measurements)
+                load_npy_dir = './{}/data_driven/noise_{}/measurement_{}/npy'.format(hparams.load_seed_no, noise_info, hparams.num_measurements)
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)
                 if not os.path.exists(npy_dir):
@@ -322,11 +295,7 @@ def main(hparams):
                     bot_mask[basis[0],basis[1]] = 1
                 top_mask[top_mask==0] = np.nan
                 bot_mask[bot_mask==0] = np.nan
-                # plt.figure()
-                # plt.imshow(img, 'gray', interpolation='none')
-                # plt.imshow(top_mask, 'Greens', interpolation='none', alpha=0.7)
-                # plt.imshow(bot_mask, 'Reds', interpolation='none', alpha=0.7)
-                # plt.savefig(os.path.join(save_dir, 'Reconstruct_energy_from_ROUND_{}.jpg'.format(hparams.adaptive_round_count)))
+                
                 np.save( os.path.join(npy_dir, 'least_error_from_ROUND_{}.npy'.format(hparams.adaptive_round_count)), top_mask) 
                 np.save( os.path.join(npy_dir, 'most_error_from_ROUND_{}.npy'.format(hparams.adaptive_round_count)), bot_mask) 
                 color_map(top_mask, os.path.join(save_dir, 'least_error_from_ROUND_{}.jpg'.format(hparams.adaptive_round_count)))
@@ -341,12 +310,11 @@ if __name__ == '__main__':
     PARSER = ArgumentParser()
 
     # Pretrained model
-    PARSER.add_argument('--pretrained-model-dir', type=str, default='../mnist_vae/models/mnist-vae/', help='Directory containing pretrained model')
+    PARSER.add_argument('--pretrained-model-dir', type=str, default='./mnist_vae/models/mnist-vae/', help='Directory containing pretrained model')
 
     # Input
     PARSER.add_argument('--dataset', type=str, default='mnist', help='Dataset to use')
     PARSER.add_argument('--input-type', type=str, default='full-input', help='Where to take input from')
-    #PARSER.add_argument('--input-path-pattern', type=str, default='../../GANPriors-master/celeba/data/test/*.jpg', help='Pattern to match to get images') ###july 2
     PARSER.add_argument('--input-path-pattern', type=str, default='../images/*.jpg', help='Pattern to match to get images') ###july 2
     PARSER.add_argument('--num-input-images', type=int, default=1, help='number of input images')
     PARSER.add_argument('--batch-size', type=int, default=1, help='How many examples are processed together')
@@ -355,7 +323,7 @@ if __name__ == '__main__':
     PARSER.add_argument('--measurement-type', type=str, default='gaussian_data_driven', help='measurement type')
     PARSER.add_argument('--noise-std', type=float, default=0.1, help='std dev of noise')
     PARSER.add_argument('--seed-no', type=int, default=256)
-    PARSER.add_argument('--output-file-path', type=str, default='../src/jul13/output_result.txt')
+    PARSER.add_argument('--output-file-path', type=str, default='./result_mnist.txt')
 
     # Measurement type specific hparams
     PARSER.add_argument('--num-measurements', type=int, default=200, help='number of gaussian measurements')
@@ -403,8 +371,8 @@ if __name__ == '__main__':
     #added by Young (all below)
     PARSER.add_argument('--variance-amount', type=float, default=4.0)
     PARSER.add_argument('--num-observe', type=int, default=49)
-    PARSER.add_argument('--mnist_propotional_var_mask', type=str, default='/home/sunyang/csgm/uncertainty/mnist_propotional_var_mask.npy')
-    PARSER.add_argument('--pickle_file_path', type=str, default='/home/sunyang/csgm/src/to_produce_table_chart_oct01.pkl')
+    PARSER.add_argument('--mnist_propotional_var_mask', type=str, default='./uncertainty/mnist_propotional_var_mask.npy')
+    PARSER.add_argument('--pickle_file_path', type=str, default='./result_mnist.pkl')
     
     # adaptive
     PARSER.add_argument('--adaptive-round-count', type=int, default=-1)
@@ -468,9 +436,9 @@ if __name__ == '__main__':
 
     if HPARAMS.dataset == 'mnist':
         HPARAMS.image_shape = (28, 28, 1)
-        HPARAMS.mnist_block_mask = '/home/sunyang/csgm/uncertainty/mnist_var_top_{}_mask.npy'.format(HPARAMS.num_observe)
-        HPARAMS.mnist_propotional_A = '/home/sunyang/csgm/uncertainty/mnist_propotional_A_mea_{}.npy'.format(HPARAMS.num_measurements)
-        HPARAMS.mnist_block_data_driven_A = '/home/sunyang/csgm/uncertainty/mnist_block_{}_data_driven_A_i_{}_j_{}_mea_{}.npy'.format(
+        HPARAMS.mnist_block_mask = './uncertainty/mnist_var_top_{}_mask.npy'.format(HPARAMS.num_observe)
+        HPARAMS.mnist_propotional_A = './uncertainty/mnist_propotional_A_mea_{}.npy'.format(HPARAMS.num_measurements)
+        HPARAMS.mnist_block_data_driven_A = './uncertainty/mnist_block_{}_data_driven_A_i_{}_j_{}_mea_{}.npy'.format(
             HPARAMS.block_size, HPARAMS.i, HPARAMS.j, HPARAMS.num_measurements)
         from mnist_input import model_input
         from mnist_utils import view_image, save_image
