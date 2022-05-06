@@ -10,10 +10,7 @@ tf.disable_v2_behavior()
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-
 import mnist_estimators
-import celebA_estimators
-
 from sklearn.linear_model import Lasso
 from l1regls import l1regls
 from cvxopt import matrix
