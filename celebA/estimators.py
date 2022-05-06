@@ -1,6 +1,4 @@
 """Estimators for compressed sensing"""
-# pylint: disable = C0301, C0103, C0111, R0914
-
 import copy
 import heapq
 import torch
@@ -12,8 +10,8 @@ import utils as utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # from stylegan2.model import Generator
-from ncsnv2.models import get_sigmas, ema
-from ncsnv2.models.ncsnv2 import NCSNv2, NCSNv2Deepest
+# from ncsnv2.models import get_sigmas, ema
+# from ncsnv2.models.ncsnv2 import NCSNv2, NCSNv2Deepest
 from glow import model as glow_model
 
 try:
@@ -46,178 +44,6 @@ def get_measurements_torch(x_hat_batch, A, measurement_type, hparams):
         x_hat_reshape_batch = x_hat_batch.view((batch_size,) + hparams.image_shape)
         y_hat_batch = F.avg_pool2d(x_hat_reshape_batch, hparams.downsample)
     return y_hat_batch.view(batch_size, -1)
-
-def stylegan_langevin_estimator(hparams):
-
-    model = Generator(hparams.image_size, 512, 8)
-    model.load_state_dict(torch.load(hparams.checkpoint_path)["g_ema"], strict=False)
-    model.eval()
-    model = model.to(hparams.device)
-
-    for p in model.parameters():
-        p.requires_grad = False
-
-    #mse = torch.nn.SmoothL1Loss(reduction='none')
-    mse = torch.nn.MSELoss(reduction='none')
-    l1 = torch.nn.L1Loss(reduction='none')
-    annealed = hparams.annealed
-
-
-    model = torch.nn.DataParallel(model)
-
-    def estimator(A_val, y_val, hparams):
-        """Function that returns the estimated image"""
-
-        if A_val is not None:
-            A = torch.Tensor(A_val).cuda()
-        else:
-            A = None
-        y = torch.Tensor(y_val).cuda()
-
-        best_keeper = utils.BestKeeper(hparams.batch_size, hparams.n_input)
-        noises_single = model.module.make_noise()
-        count = 512
-        for noise in noises_single:
-            count += np.prod(noise.shape)
-        best_keeper_z = utils.BestKeeper(hparams.batch_size, count)
-
-        # run T steps of langevin for L different noise levels
-        T = hparams.T
-        L = hparams.L
-        sigma1 = hparams.sigma_init
-        sigmaT = hparams.sigma_final
-        # geometric factor for tuning sigma and learning rate
-        factor = np.power(sigmaT / sigma1, 1/(L-1))
-
-        # if you're running regular langevin, step size is fixed
-        # and noise std doesn't change
-        if annealed:
-            lr_lambda = lambda i: (sigma1 * np.power(factor, (i-1)//T))**2 / (sigmaT **2)
-            sigma_lambda = lambda i: sigma1 * np.power(factor, i//T)
-        else:
-            lr_lambda = lambda i: 1
-            sigma_lambda = lambda i: hparams.noise_std
-
-        for i in range(hparams.num_random_restarts):
-
-            z = hparams.zprior_init_sdev * torch.randn(hparams.batch_size, 512, device=hparams.device)
-            z.requires_grad_()
-            noises_single = model.module.make_noise()
-            noises = []
-            noise_vars = []
-
-            count = 512
-            # optimize over a certain number of noise variables
-            for idx, noise in enumerate(noises_single):
-                noises.append(hparams.zprior_init_sdev * noise.repeat(hparams.batch_size, 1, 1, 1).normal_())
-                if idx < hparams.num_noise_variables:
-                    noise_vars.append(noises[-1])
-                    noises[-1].requires_grad = True
-                    count += np.prod(noises[-1].shape)
-            print(count)
-
-            opt = utils.get_optimizer([z] + noise_vars, hparams.learning_rate, hparams)
-            # check whether cosine annealing of lr helps
-            scheduler = torch.optim.lr_scheduler.LambdaLR(opt,lr_lambda)
-
-            for j in range(hparams.max_update_iter):
-                opt.zero_grad()
-                # stylegan2 adds some noise to the latent. dunno if this
-                # is important
-
-                # noise_strength = latent_std * args.noise * max(0, 1 - t / args.noise_ramp) ** 2
-                # latent_n = latent_noise(latent_in, noise_strength.item())
-
-                # the flag input_is_latent determines whether z is passed through the
-                # styling network
-                # can be done explicitly as well
-                x_hat_batch = 0.5 * model([z], input_is_latent=False, noise=noises)[0] + 0.5
-                if hparams.gif and (( j % hparams.gif_iter) == 0):
-                    images = x_hat_batch.detach().cpu().numpy()
-                    for im_num, image in enumerate(images):
-                        save_dir = '{0}/{1}/'.format(hparams.gif_dir, im_num)
-                        utils.set_up_dir(save_dir)
-                        save_path = save_dir + '{0}.png'.format(j)
-                        image = image.reshape(hparams.image_shape)
-                        save_image(image, save_path)
-                y_hat_batch = get_measurements_torch(x_hat_batch, A, hparams.measurement_type, hparams)
-                y_hat_batch_nchw = y_hat_batch.view( hparams.y_shape)
-                y_batch_nchw = y.view( hparams.y_shape)
-                m_loss_batch = mse(y_hat_batch, y).sum(dim=1)
-                p_loss_batch = torch.norm(z,dim=-1).pow(2)
-                for noise in noise_vars:
-                    p_loss_batch += torch.norm(noise.view(hparams.batch_size, -1), dim=-1).pow(2)
-                p_loss_batch = p_loss_batch.view(-1)
-                if (hparams.mloss_weight is not None) and (not annealed):
-                    mloss_weight = hparams.mloss_weight
-                else:
-                    sigma = sigma_lambda(j)
-                    mloss_weight = hparams.num_measurements / (2 * sigma**2)
-
-                if (hparams.zprior_weight is not None) :
-                    zprior_weight = hparams.zprior_weight
-                else:
-                    zprior_weight = 0.5 / (hparams.zprior_sdev **2)
-                total_loss_batch = mloss_weight * m_loss_batch + zprior_weight * p_loss_batch
-
-                m_loss = m_loss_batch.sum()
-                p_loss = p_loss_batch.sum()
-                total_loss = total_loss_batch.sum()
-
-                total_loss.backward()
-                opt.step()
-
-                gradient_noise_weight = np.sqrt(2*opt.param_groups[0]['lr'] /(1- hparams.momentum))
-                z.data += gradient_noise_weight*torch.randn_like(z).to(hparams.device)
-                for noise in noise_vars:
-                    noise.data += gradient_noise_weight * torch.randn_like(noise).to(hparams.device)
-
-                scheduler.step()
-
-                logging_format = 'rr {} iter {} lr {} total_loss {} l_loss {} m_loss {} p_loss {}'
-                print(logging_format.format(i, j, opt.param_groups[0]['lr'], total_loss.item(), None, m_loss.item(), p_loss.item()))
-
-            x_hat_batch = 0.5 * model([z], input_is_latent=False, noise=noises)[0] + 0.5
-            y_hat_batch = get_measurements_torch(x_hat_batch, A, hparams.measurement_type, hparams)
-            y_hat_batch_nchw = y_hat_batch.view( hparams.y_shape)
-            y_batch_nchw = y.view( hparams.y_shape)
-            m_loss_batch = mse(y_hat_batch, y).sum(dim=1)
-            p_loss_batch = torch.norm(z,dim=-1).pow(2)
-            for noise in noise_vars:
-                p_loss_batch += torch.norm(noise.view(hparams.batch_size, -1), dim=-1).pow(2)
-            p_loss_batch = p_loss_batch.view(-1)
-            total_loss_batch = mloss_weight * m_loss_batch \
-                    + zprior_weight * p_loss_batch
-            best_keeper.report(x_hat_batch.view(hparams.batch_size,-1).detach().cpu().numpy(), total_loss_batch.detach().cpu().numpy())
-            z_hat_batch = z.view(hparams.batch_size,-1).detach().cpu().numpy()
-            for noise in noises:
-                z_hat_batch = np.c_[z_hat_batch, noise.view(hparams.batch_size,-1).detach().cpu().numpy()]
-
-            best_keeper_z.report(z_hat_batch, total_loss_batch.detach().cpu().numpy())
-            if m_loss_batch.mean()<= hparams.error_threshold:
-                break
-        return best_keeper.get_best(), best_keeper_z.get_best(), best_keeper.losses_val_best
-
-    return estimator
-
-def stylegan_pulse_estimator(hparams):
-
-    model = PULSE(image_size=hparams.image_size, checkpoint_path=hparams.checkpoint_path, dataset=hparams.dataset)
-    def estimator(A_val, y_val, hparams):
-        """Function that returns the estimated image"""
-        kwargs = vars(hparams)
-
-        y_val_tensor = torch.Tensor(y_val.reshape(hparams.y_shape)).cuda()
-
-        for (HR, LR) in model(y_val_tensor, **kwargs):
-
-            return HR.detach().cpu().numpy().reshape(hparams.batch_size,-1), np.zeros(hparams.batch_size), np.zeros(hparams.batch_size)
-
-    return estimator
-
-
-
-
 
 
 def glow_annealed_map_estimator(hparams):
@@ -348,10 +174,6 @@ def glow_annealed_map_estimator(hparams):
     return estimator
 
 
-
-
-
-
 def glow_annealed_langevin_estimator(hparams):
 
     annealed = hparams.annealed
@@ -478,133 +300,7 @@ def glow_annealed_langevin_estimator(hparams):
 
     return estimator
 
-def ncsnv2_langevin_estimator(hparams, MAP=False):
-    def dict2namespace(config):
-        namespace = argparse.Namespace()
-        for key, value in config.items():
-            if isinstance(value, dict):
-                new_value = dict2namespace(value)
-            else:
-                new_value = value
-            setattr(namespace, key, new_value)
-        return namespace
 
-    def gradient_log_conditional_likelihood(A, y_batch, y_hat_batch):
-        err = y_batch - y_hat_batch
-        if hparams.measurement_type == 'superres':
-            err = err.view(hparams.y_shape)
-            ans = F.interpolate(err, scale_factor = hparams.downsample)
-        elif hparams.measurement_type == 'circulant':
-            err_padded = torch.zeros(hparams.batch_size, hparams.n_input).to(hparams.device)
-            err_padded[:,hparams.train_indices] = err
-            A_shift = torch.zeros_like(A)
-            A_shift[0,0] = A[0,0]
-            A_shift[0,1:] = A[0,1:].flip(dims=[0])
-
-            err_A = utils.partial_circulant_torch(err_padded, A_shift, range(hparams.n_input), sign_pattern=ones_torch)
-
-            ans = err_A * sign_pattern_torch
-            ans = ans.view((-1,) + hparams.image_shape)
-        else:
-            return NotImplementedError
-
-        return ans
-
-
-    batch_size = hparams.batch_size
-    if hparams.measurement_type == 'circulant':
-        if hparams.sign_pattern is not None:
-            sign_pattern_torch = torch.Tensor(hparams.sign_pattern).to(hparams.device)
-            ones_torch = torch.ones(1,hparams.n_input).to(hparams.device)
-    else:
-        pass
-    new_config = dict2namespace(hparams.ncsnv2_configs)
-    new_config.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    new_config.sampling.batch_size = batch_size
-
-    if 'ffhq' in hparams.dataset :
-        score = NCSNv2Deepest(new_config).to(new_config.device)
-    elif hparams.dataset == 'celebA':
-        score = NCSNv2(new_config).to(new_config.device)
-
-
-    sigmas_torch = get_sigmas(new_config)
-    sigmas = sigmas_torch.cpu().numpy()
-
-    states = torch.load(hparams.checkpoint_path,
-                        map_location=new_config.device)
-
-    score = torch.nn.DataParallel(score)
-
-    score.load_state_dict(states[0], strict=True)
-
-    for p in score.parameters():
-        p.requires_grad = False
-
-    if new_config.model.ema:
-        ema_helper = ema.EMAHelper(mu=new_config.model.ema_rate)
-        ema_helper.register(score)
-        ema_helper.load_state_dict(states[-1])
-        ema_helper.ema(score)
-
-
-    score.eval()
-
-    mse = torch.nn.MSELoss(reduction='none')
-
-    def estimator(A_val, y_val, hparams):
-        x_hat_nchw_batch = torch.rand((hparams.batch_size,) + hparams.image_shape,
-                device=new_config.device)
-        zeros = torch.zeros_like(x_hat_nchw_batch)
-        n_steps_each = new_config.sampling.n_steps_each
-        step_lr = new_config.sampling.step_lr
-
-        y_batch = torch.Tensor(y_val).to(new_config.device)
-        if A_val is not None:
-            A = torch.Tensor(A_val).to(new_config.device)
-        else:
-            A = None
-        with torch.no_grad():
-            start = time.time()
-            for c, sigma in enumerate(sigmas[:int(hparams.L)]):
-                labels = torch.ones(x_hat_nchw_batch.shape[0], device=x_hat_nchw_batch.device) * c
-                labels = labels.long()
-                step_size = step_lr * (sigma / sigmas[-1]) ** 2
-
-                for s in range(n_steps_each):
-                    j = c*n_steps_each + s
-                    if hparams.gif and (( j % hparams.gif_iter) == 0):
-                        images = x_hat_nchw_batch.detach().cpu().numpy()
-                        for im_num, image in enumerate(images):
-                            save_dir = '{0}/{1}/'.format(hparams.gif_dir, im_num)
-                            utils.set_up_dir(save_dir)
-                            save_path = save_dir + '{0}.png'.format(j)
-                            image = image.reshape(hparams.image_shape)
-                            save_image(image, save_path)
-                    noise = torch.randn_like(x_hat_nchw_batch) * np.sqrt(step_size * 2)
-                    grad = score(x_hat_nchw_batch, labels)
-                    #error = (up(torch_downsample(x_hat_nchw_batch,factor) - y) / sigma**2)
-
-                    y_hat_batch = get_measurements_torch(x_hat_nchw_batch.view(hparams.batch_size, -1), A, hparams.measurement_type, hparams)
-                    m_loss_grad_nchw = gradient_log_conditional_likelihood(A, y_batch, y_hat_batch) / (sigma**2 + hparams.noise_std**2 / hparams.num_measurements)
-                    if hparams.mloss_weight is None:
-                        mloss_weight = 1.0
-                    else:
-                        mloss_weight = hparams.mloss_weight
-                    if MAP:
-                        x_hat_nchw_batch = x_hat_nchw_batch + step_size * (grad + mloss_weight * m_loss_grad_nchw)
-                    else:
-                        x_hat_nchw_batch = x_hat_nchw_batch + step_size * (grad + mloss_weight * m_loss_grad_nchw) + noise
-
-                    m_loss_batch = mse(y_hat_batch, y_batch).sum(dim=1)
-
-                    print("class: {}, step_size: {}, mean {}, max {}, y_mse {}".format(c, step_size, grad.abs().mean(),
-                                                                             grad.abs().max(), m_loss_batch.mean()))
-            end = time.time()
-            print(f'Time on batch:{(end - start)/60:.3f} minutes')
-        return x_hat_nchw_batch.view(hparams.batch_size,-1).cpu().numpy(), np.zeros(hparams.batch_size), m_loss_batch.cpu().numpy()
-
-    return estimator
 
 def deep_decoder_estimator(hparams):
     num_channels = [700]*7
@@ -644,10 +340,6 @@ def deep_decoder_estimator(hparams):
         return net(ni.cuda()).view(hparams.batch_size,-1).detach().cpu().numpy(), np.zeros(hparams.batch_size), np.zeros(hparams.batch_size)
 
     return estimator
-
-
-
-
 
 
 
