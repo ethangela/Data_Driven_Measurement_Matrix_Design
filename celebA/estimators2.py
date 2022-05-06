@@ -8,7 +8,7 @@ import numpy as np
 import scipy.fftpack as fftpack
 import sys
 import os
-import utils2 as utils
+import utils as utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # from stylegan2.model import Generator
