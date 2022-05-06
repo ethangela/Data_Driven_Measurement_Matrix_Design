@@ -30,7 +30,7 @@ def matrix_builder(hparams, var_m):
     signal_shape = var_m.shape
     std = np.zeros(signal_shape)
     
-    adhoc = np.load('../../uncertainty2/celeb_var_top_1_2_adhoc.npy')[64:192,64:192] #128,128
+    adhoc = np.load('./uncertainty2/celeb_var_top_1_2_adhoc.npy')[64:192,64:192] #128,128
     var_m_norm = normalize(var_m*adhoc)
     var_m_norm = (var_m_norm+0.15)/(1+0.15) #aug14
     unit = (0.5/hparams.num_measurements) * np.prod(signal_shape) / np.sum(var_m_norm*adhoc)
