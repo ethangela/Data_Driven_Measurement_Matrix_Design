@@ -8,10 +8,6 @@ import sys
 import os
 import utils as utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
-# from stylegan2.model import Generator
-# from ncsnv2.models import get_sigmas, ema
-# from ncsnv2.models.ncsnv2 import NCSNv2, NCSNv2Deepest
 from glow import model as glow_model
 
 try:
@@ -297,47 +293,6 @@ def glow_annealed_langevin_estimator(hparams):
             best_keeper.report(x_hat_batch_value, total_loss_batch_value)
             best_keeper_z.report(z_hat_batch_value, total_loss_batch_value)
         return best_keeper.get_best(), best_keeper_z.get_best(), best_keeper.losses_val_best
-
-    return estimator
-
-
-
-def deep_decoder_estimator(hparams):
-    num_channels = [700]*7
-    output_depth = 3 # hparams.image_size
-
-    def estimator(A_val, y_val, hparams):
-
-        y_batch = torch.Tensor(y_val).to(hparams.device)
-        if A_val is not None:
-            A = torch.Tensor(A_val).to(hparams.device)
-        else:
-            A = None
-
-        def apply_f(x):
-            return get_measurements_torch(x.view(hparams.batch_size,-1),A,hparams.measurement_type,hparams)
-
-        net = decoder.decodernw(output_depth, num_channels_up=num_channels, upsample_first=True).cuda()
-
-        rn = 0.005
-        rnd = 500
-        numit = 4000
-
-        print(hparams.max_update_iter)
-        mse_n, mse_t, ni, net = fit(
-                       num_channels=num_channels,
-                        reg_noise_std=rn,
-                        reg_noise_decayevery = rnd,
-                        num_iter=hparams.max_update_iter,
-                        LR=hparams.learning_rate,
-                        OPTIMIZER=hparams.optimizer_type,
-                        img_noisy_var=y_batch,
-                        net=net,
-                        img_clean_var=torch.zeros_like(y_batch),
-                        find_best=True,
-                        apply_f=apply_f,
-                        )
-        return net(ni.cuda()).view(hparams.batch_size,-1).detach().cpu().numpy(), np.zeros(hparams.batch_size), np.zeros(hparams.batch_size)
 
     return estimator
 
