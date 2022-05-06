@@ -24,7 +24,7 @@ from PIL import Image
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-import estimators2 as estimators
+import estimators as estimators
 font = { 'weight' : 'bold',
         'size'   : 30}
 import matplotlib
