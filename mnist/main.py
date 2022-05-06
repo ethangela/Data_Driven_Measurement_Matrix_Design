@@ -22,8 +22,6 @@ def matrix_builder(hparams, var_m):
     for i in range(signal_shape[0]):
         for j in range(signal_shape[1]):
             std[i,j] = np.sqrt(var_m[i,j] * unit)
-            # var_adjust = (var_m[i,j]+0.25) / (1+0.25) #aug14
-            # std[i,j] = np.sqrt(var_adjust * unit)
     std = np.reshape(std, (-1))
     A = np.zeros((np.prod(signal_shape), hparams.num_measurements))
     for i in range(std.shape[0]):
@@ -72,15 +70,11 @@ def main(hparams):
     img_noise = hparams.noise_std * np.random.randn(hparams.image_shape[0], hparams.image_shape[1], hparams.image_shape[2])
     # print('!!!!!!!!!! noise mean {}'.format(np.mean(img_noise)))
     img_noise += img
-    
-    if hparams.dataset == 'celebA':
-        img = (img+1.)/2.
-        img_noise = (img_noise+1.)/2.
     img = img * 255.
     img_noise = img_noise * 255.
 
     if hparams.mini_batch != 1:
-        save_dir = os.path.join('../src', str(hparams.seed_no))
+        save_dir = os.path.join('./', str(hparams.seed_no))
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         imsave(os.path.join(save_dir,'{}_seed_{}_original.jpg'.format(hparams.dataset, hparams.seed_no)), img.astype(np.uint8))
@@ -315,7 +309,6 @@ if __name__ == '__main__':
     # Input
     PARSER.add_argument('--dataset', type=str, default='mnist', help='Dataset to use')
     PARSER.add_argument('--input-type', type=str, default='full-input', help='Where to take input from')
-    PARSER.add_argument('--input-path-pattern', type=str, default='../images/*.jpg', help='Pattern to match to get images') ###july 2
     PARSER.add_argument('--num-input-images', type=int, default=1, help='number of input images')
     PARSER.add_argument('--batch-size', type=int, default=1, help='How many examples are processed together')
 
