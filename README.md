@@ -1,4 +1,4 @@
-# adaptive sampling with MCMC (building...)
+# Data-Driven Algorithms for Gaussian Measurement Matrix Design in Compressive Sensing
 
 Code partly borrowed from Bora’s https://github.com/AshishBora/csgm
 
