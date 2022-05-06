@@ -17,8 +17,6 @@ import torch
 
 try:
 	import tensorflow as tf
-    # import tensorflow.compat.v1 as tf
-    # tf.disable_v2_behavior()
 except ImportError:
 	print('did not import tensorflow')
 
