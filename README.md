@@ -11,14 +11,20 @@ This repository provides code to reproduce results of the paper: [Data-Driven Al
 
 ### Reproducing quantitative results
 ---
-1. We build a pair of training/testing demo for all experiments ove three dataset by runing two following scripts:
+1. We build a pair of training & testing demo for all experiments ove three dataset by runing two following scripts:
      - ```$ ./mnist/train.sh```
-     - ```$ ./mnist/test.sh```   
-2. For MNIST experiment, the tunable parametres are:  
+     - ```$ ./mnist/test.sh```  
+2. For all experiments, noise variance and #measurements can be set with two following parameters:
+     - ```--noise-std``` the variance (square of standard deviation) of noise
+     - ```--num-measurements ``` the number of measurements 
+3. For MNIST experiment, the tunable parametres are:  
      - ```--seed-no``` the index of image being processed 
      - ```--adaptive-round-count``` the index of current round of training
-2. For CelebA dataset, run python ./celeba/main.py
-3. For Sythentic dataset, run python ./L1AE/main.py
+4. For CelebA dataset, the tunable parametres are:  
+     - ```--img-no``` the index of image being processed 
+     - ```--load-img-no``` the index of image being processed in previous round
+5. For Sythentic dataset, the tunable parametres are:  
+     - ```--input_dim``` the dimension of to-be-built synthetic data  
 
 
 ### Additional Information
