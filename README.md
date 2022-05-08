@@ -12,7 +12,9 @@ This repository provides code to reproduce results of the paper: [Data-Driven Al
 ### Reproducing quantitative results
 ---
 
-1. For MNIST dataset, run python ./mnist/main.py
+1. For MNIST dataset
+     - ```$ ./mnist/train.sh```
+     - ```$ ./mnist/test.sh "    
 2. For CelebA dataset, run python ./celeba/main.py
 3. For Sythentic dataset, run python ./L1AE/main.py
 
