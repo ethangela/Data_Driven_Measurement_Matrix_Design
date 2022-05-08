@@ -2,7 +2,7 @@
 
 # An example script of Iteratively-Learned Power Allocation algorithm training when noise_variance=0.0 and num_measurement=10, with batch-size=3 and num-of-round=2:
 #generate variance maps
-python./mnist/variance_map_produce.map
+python ./mnist/variance_map_produce.map
 #round 1
 python ./mnist/main.py --model-types vae_map --noise-std 0.0 --num-measurements 10 --seed-no 80 --mini-batch 1 --mini-batch-train 1 --adaptive-round-count 0
 python ./mnist/main.py --model-types vae_map --noise-std 0.0 --num-measurements 10 --seed-no 81 --mini-batch 1 --mini-batch-train 1 --adaptive-round-count 0
@@ -19,7 +19,7 @@ python ./mnist/main.py --model-types vae_map --noise-std 0.0 --num-measurements 
 
 # An example script of Iteratively-Learned Power Allocation algorithm training when noise_variance=16.0 and num_measurement=900, with batch-size=1 and num-of-round=5:
 #generate variance maps
-python./mnist/variance_map_produce.map
+python ./mnist/variance_map_produce.map
 #round 1 to 5
 python ./celeba/main.py --measurement-type gaussian_data_driven --model-type map --img-no 7 --noise-std 16.0 --num-measurements 900 --adaptive-round-count 0
 python ./celeba/main.py --measurement-type gaussian_data_driven --model-type map --img-no 8 --noise-std 16.0 --num-measurements 900 --adaptive-round-count 1 --load-img-no 7
