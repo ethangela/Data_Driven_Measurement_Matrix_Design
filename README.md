@@ -2,16 +2,14 @@
 
 This repository provides code to reproduce results of the paper: [Data-Driven Algorithms for Gaussian Measurement Matrix Design in Compressive Sensing](https://ieeexplore.ieee.org/document/9747617).
 
-
-### Requirements: 
 ---
+### Requirements: 
 1. Python 3.0
 2. Tensorflow v1.15.0
 3. PyTorch 1.11.0
 
-
-### Reproducing quantitative results
 ---
+### Reproducing quantitative results
 1. We build a pair of training & testing demo for all experiments ove three dataset by runing two following scripts:
      - ```$ ./mnist/train.sh```
      - ```$ ./mnist/test.sh```  
@@ -27,9 +25,8 @@ This repository provides code to reproduce results of the paper: [Data-Driven Al
 5. For Sythentic dataset, the tunable parametres are:  
      - ```--input_dim``` the dimension of to-be-built synthetic data  
 
-
-### Additional Information
 ---
+### Additional Information
 For pre-trained model checkpoints download, see [here](https://to_be_update).
 
 
