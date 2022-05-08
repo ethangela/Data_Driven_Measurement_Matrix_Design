@@ -15,8 +15,8 @@ This repository provides code to reproduce results of the paper: [Data-Driven Al
      - ```$ ./mnist/train.sh```
      - ```$ ./mnist/test.sh```   
 2. For MNIST experiment, the tunable parametres are:  
-     - ```$ ----seed-no``` fssda
-     - ```$ ./mnist/test.sh``` 
+     - ```--seed-no``` the index of image being processed 
+     - ```--adaptive-round-count``` the index of current round of training
 2. For CelebA dataset, run python ./celeba/main.py
 3. For Sythentic dataset, run python ./L1AE/main.py
 
