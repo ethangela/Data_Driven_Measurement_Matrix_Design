@@ -27,6 +27,8 @@ This repository provides code to reproduce results of the paper: [Data-Driven Al
 
 ---
 ### Additional Information
-For pre-trained model checkpoints download, see [here](https://to_be_update).
+For pre-trained model download, see 
+     -```[VAE for MNIST](https://github.com/ajiljalal/code-cs-fairness)```
+     -```[Glow for CelebA](https://github.com/AshishBora/csgm)```
 
 
