@@ -28,9 +28,9 @@ This repository provides code to reproduce results of the paper: [Data-Driven Al
 ---
 ### Additional Information
 1. For pre-trained model download, see 
-     -```[VAE for MNIST](https://github.com/ajiljalal/code-cs-fairness)```
-     -```[Glow for CelebA](https://github.com/AshishBora/csgm)```
+     - [VAE for MNIST](https://github.com/ajiljalal/code-cs-fairness)
+     - [Glow for CelebA](https://github.com/AshishBora/csgm)
 2. For CelebA-HQ dataset download, see
-     -```https://mmlab.ie.cuhk.edu.hk/projects/CelebA.html``` 
+     - https://mmlab.ie.cuhk.edu.hk/projects/CelebA.html 
 
 
