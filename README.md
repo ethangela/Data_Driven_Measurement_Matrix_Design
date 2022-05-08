@@ -11,11 +11,10 @@ This repository provides code to reproduce results of the paper: [Data-Driven Al
 
 ### Reproducing quantitative results
 ---
-We build a pair of training/testing demo for all experiments ove three dataset by runing two following scripts: \\
+1. We build a pair of training/testing demo for all experiments ove three dataset by runing two following scripts:
      - ```$ ./mnist/train.sh```
-     - ```$ ./mnist/test.sh``` 
-   
-1. For MNIST dataset, a demo experiment with batch_size=3 and number_of_measurement=2 can be performed with following two scripts: 
+     - ```$ ./mnist/test.sh```   
+2. For MNIST dataset, a demo experiment with batch_size=3 and number_of_measurement=2 can be performed with following two scripts: 
      - ```$ ./mnist/train.sh```
      - ```$ ./mnist/test.sh``` 
 2. For CelebA dataset, run python ./celeba/main.py
