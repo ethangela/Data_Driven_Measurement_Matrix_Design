@@ -14,8 +14,8 @@ This repository provides code to reproduce results of the paper: [Data-Driven Al
 1. We build a pair of training/testing demo for all experiments ove three dataset by runing two following scripts:
      - ```$ ./mnist/train.sh```
      - ```$ ./mnist/test.sh```   
-2. For MNIST dataset, a demo experiment with batch_size=3 and number_of_measurement=2 can be performed with following two scripts: 
-     - ```$ ./mnist/train.sh```
+2. For MNIST experiment, the tunable parametres are:  
+     - ```$ ----seed-no``` fssda
      - ```$ ./mnist/test.sh``` 
 2. For CelebA dataset, run python ./celeba/main.py
 3. For Sythentic dataset, run python ./L1AE/main.py
