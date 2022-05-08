@@ -11,7 +11,7 @@ This repository provides code to reproduce results of the paper: [Data-Driven Al
 
 ### Reproducing quantitative results
 ---
-We build a pair of training/testing demo for all experiments ove three dataset by runing two following scripts:
+We build a pair of training/testing demo for all experiments ove three dataset by runing two following scripts: \\
      - ```$ ./mnist/train.sh```
      - ```$ ./mnist/test.sh``` 
    
